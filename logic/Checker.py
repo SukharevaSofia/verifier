@@ -9,16 +9,20 @@ class Checker:
     result = None
     # Методы проверки для Влада. Пока как заглушки
 
-    def update_result(self):
-        selected = App.get_running_app().selected_file
-        if selected and self.last_file != selected:
+    def run_analysis(self, selected):
+        if selected:
             self.last_file = selected
-            if selected.endswith(".doc"):
+            if str(selected).endswith(".doc"):
                 self.result = DocAnalyzer.analyze(selected)
-            elif selected.endswith(".docx"):
+            elif str(selected).endswith(".docx"):
                 self.result = DocxAnalyzer.main(selected)
             else:
                 self.result = None
+
+    def update_result(self):
+        selected = App.get_running_app().selected_file
+        if selected and self.last_file != selected:
+            self.run_analysis(selected)
 
     # Для всего (итоговая оценка отчета. Возврат только True или False)
 
@@ -34,12 +38,7 @@ class Checker:
         selected = App.get_running_app().selected_file
         if not selected:
             return False
-        if selected.endswith(".doc"):
-            self.result = DocAnalyzer.analyze(selected)
-        elif selected.endswith(".docx"):
-            self.result = DocxAnalyzer.main(selected)
-        else:
-            self.result = None
+        self.run_analysis(selected)
         if self.result is None:
             return False
         return all([x for x in self.result.values()])
