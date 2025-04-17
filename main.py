@@ -29,7 +29,7 @@ class DesignApp(App):
             Color(1, 1, 1, 1)
             self.rect = Rectangle(size=sm.size, pos=sm.pos)
 
-        sm.bind(size=self.update_rect, pos=self.update_rect)
+        sm.bind(size=self.update_rect, pos=self.update_rect, on_drop_file=self.on_drop_file)
         menu = LeftMenu(screen_manager=sm)
 
         root.add_widget(menu)
@@ -37,9 +37,13 @@ class DesignApp(App):
 
         return root
 
+    def on_drop_file(self, filename, x, y, args):
+        self.selected_file = filename
+
     def update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
+
 
 if __name__ == '__main__':
     DesignApp().run()
