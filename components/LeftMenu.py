@@ -4,6 +4,19 @@ from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle
 from components.MenuButton import MenuButton
 
+import os
+import sys
+
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 class LeftMenu(BoxLayout):
     def __init__(self, screen_manager, **kwargs):
         super().__init__(**kwargs)
@@ -16,7 +29,8 @@ class LeftMenu(BoxLayout):
             self.bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_bg, size=self.update_bg)
 
-        self.add_widget(Image(source='pict/ITMO_logo.png', size_hint_y=None, height=100))
+        self.add_widget(Image(source=resource_path('ITMO_logo.png'),
+                        size_hint_y=None, height=100))
         self.add_widget(Widget(size_hint_y=None, height=10))
 
         menu_items = [
@@ -28,7 +42,8 @@ class LeftMenu(BoxLayout):
         ]
 
         for label, screen_name in menu_items:
-            btn = MenuButton(text=label, screen_manager=screen_manager, target_screen=screen_name)
+            btn = MenuButton(
+                text=label, screen_manager=screen_manager, target_screen=screen_name)
             btn.size_hint_y = None
             btn.height = 50
             self.add_widget(btn)
