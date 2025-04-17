@@ -18,7 +18,7 @@ def extract_file(filename: str) -> str:
     output_dir = filename[:len(filename)-5] + "_extracted"
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
-    logger.info("creating directory " + output_dir + " to unpack to")
+    logger.info("creating directory", output_dir, "to unpack to")
     os.mkdir(output_dir)
 
     with zipfile.ZipFile(filename, 'r') as zip_ref:
@@ -284,7 +284,7 @@ def check_interval(xmlfile):
                 spacing_auto = True
         if "w:firstLine=\"709\"" in line:
             abzac = True
-    logger.info("result: abzac is " + abzac + " spacing_auto is " + spacing_auto)
+    logger.info("result: abzac is ", abzac, " spacing_auto is ", spacing_auto)
     return abzac and spacing_auto
 
 
