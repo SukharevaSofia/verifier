@@ -11,7 +11,7 @@ class Checker:
 
     def update_result(self):
         selected = App.get_running_app().selected_file
-        if self.last_file != selected:
+        if selected and self.last_file != selected:
             self.last_file = selected
             if selected.endswith(".doc"):
                 self.result = DocAnalyzer.analyze(selected)
@@ -32,6 +32,8 @@ class Checker:
 
     def run_all_checks(self):
         selected = App.get_running_app().selected_file
+        if not selected:
+            return False
         if selected.endswith(".doc"):
             self.result = DocAnalyzer.analyze(selected)
         elif selected.endswith(".docx"):
