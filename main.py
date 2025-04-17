@@ -45,7 +45,7 @@ class DesignApp(App):
         return root
 
     def on_drop_file(self, window, filename):
-        filename = str(filename)
+        filename = filename.decode('utf-16le')
         self.selected_file = filename
         print("selecting ", filename)
 
