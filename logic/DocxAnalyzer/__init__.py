@@ -18,7 +18,11 @@ def extract_file(filename: str) -> str:
     output_dir = filename[:len(filename)-5] + "_extracted"
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
-    logger.info("creating directory", output_dir, "to unpack to")
+    try: # high likelyhood of failure
+        logger.info("creating directory", output_dir, "to unpack to")
+    except:
+        logger.warn("logger failure of working with path :(")
+        pass
     os.mkdir(output_dir)
 
     with zipfile.ZipFile(filename, 'r') as zip_ref:
