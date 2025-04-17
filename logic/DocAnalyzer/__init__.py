@@ -73,7 +73,7 @@ def parse_sttb(data):
         ExtraData_end = ExtraData_start + cbExtra
         result["extradata"].append(data[ExtraData_start: ExtraData_end])
         last_position = ExtraData_end
-    logger.info("result:", result)
+    logger.info(f"result: {result}")
     return result
 
 
@@ -92,7 +92,7 @@ def file_type_lookup(cbRgFcLcb):
         case 0x00B7:  # 0x0112
             return DocFileType.DOC2007
         case _:
-            logger.warn(DocExceptions.CORRUPT, cbRgFcLcb)
+            logger.warn(f"{DocExceptions.CORRUPT} {cbRgFcLcb}")
             raise Exception(DocExceptions.CORRUPT, cbRgFcLcb)
 
 
@@ -111,7 +111,7 @@ def parse_FIB(stream):
     fComplex = list(bits(flags))[2]
     if (fComplex):
         logger.warn(DocExceptions.NOSUPPORT +
-                        "Нет поддержки зашифрованных файлов")
+                    "Нет поддержки зашифрованных файлов")
         raise Exception(DocExceptions.NOSUPPORT +
                         "Нет поддержки инкрементальных файлов")
 
@@ -151,14 +151,14 @@ def spra_size(spra, sprm, nextbyte, next2byte):
             if sprm == 0xC615:
                 cb = struct.unpack(StructInt.U16.value, next2byte)[0]
                 if cb == 255:
-                    logger.warn("Exception: ", DocExceptions.NOSUPPORT)
+                    logger.warn(f"Exception: {DocExceptions.NOSUPPORT}")
                     raise Exception(DocExceptions.NOSUPPORT)
                 return cb
             return struct.unpack(StructInt.U8.value, nextbyte)[0]
         case 7:
             return 3
         case _:
-            logger.warn("Exeption: ", DocExceptions.CORRUPT)
+            logger.warn(f"Exeption: {DocExceptions.CORRUPT}")
             raise Exception(DocExceptions.CORRUPT)
 
 
@@ -208,27 +208,27 @@ def process_ole(ole):
         ResultField.font.value: None,
     }
     if not ole.exists("WordDocument"):
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exeption: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     docdata = None
     with ole.openstream("WordDocument") as doc:
         docdata = doc.read()
     if docdata is None:
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     fib = parse_FIB(docdata)
     result[ResultField.img.value] = fib["fHasPic"]
     if not ole.exists(fib["table"]):
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     tabledata = None
     with ole.openstream(fib["table"]) as tab:
         tabledata = tab.read()
     if tabledata is None:
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     csw_start = 32
@@ -236,7 +236,7 @@ def process_ole(ole):
     csw = struct.unpack(StructInt.U16.value,
                         docdata[csw_start: csw_end])[0]
     if csw != 0x000E:
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT, csw)
 
     fibRgW_start = csw_end
@@ -248,7 +248,7 @@ def process_ole(ole):
     cslw = struct.unpack(StructInt.U16.value,
                          docdata[cslw_start:cslw_end])[0]
     if cslw != 0x0016:
-        logger.warn("Exeption: ", DocExceptions.CORRUPT, cslw)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT} cslw")
         raise Exception(DocExceptions.CORRUPT, cslw)
 
     fibRgLw_start = cslw_end
@@ -287,14 +287,14 @@ def process_ole(ole):
     if lcbPlcfSed != 0:
         PclfSed = tabledata[fcPlcfSed:fcPlcfSed+lcbPlcfSed]
         if (lcbPlcfSed-4) % 16 != 0:
-            logger.warn("Exeption: ", DocExceptions.CORRUPT, lcbPlcfSed)
+            logger.warn(f"Exception: {DocExceptions.CORRUPT} lcbPlcfSed")
             raise Exception(DocExceptions.CORRUPT, lcbPlcfSed)
         section_count = int((lcbPlcfSed-4) / 16)
         Seds = PclfSed[section_count * 4 + 4:]
         for sect in range(section_count):
             Sed = Seds[sect * 12:sect*12+12]
             if len(Sed) != 12:
-                logger.warn("Exeption: ", DocExceptions.CORRUPT, len(Sed))
+                logger.warn(f"Exception: {DocExceptions.CORRUPT} {len(Sed)}")
                 raise Exception(DocExceptions.CORRUPT, len(Sed))
             fcSepx = struct.unpack(StructInt.U32.value, Sed[2:6])[0]
             Sepx_cb = struct.unpack(
@@ -363,7 +363,7 @@ def process_ole(ole):
     stshif_cbSTDBaseInFile = struct.unpack(
         StructInt.U16.value, stshif[2:4])[0]
     if stshif_cbSTDBaseInFile != 10 and stshif_cbSTDBaseInFile != 18:
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exception: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     ftcAsci = struct.unpack(StructInt.U16.value, stshif[12:14])[0]
@@ -417,7 +417,7 @@ def process_ole(ole):
             'utf-16le')
         xstzName_chTerm = std[xstzName_rgtchar_end:xstzName_rgtchar_end+2]
         if not xstzName_chTerm == bytes.fromhex('0000'):
-            logger.warn("Exeption: ", DocExceptions.CORRUPT)
+            logger.warn(f"Exception: {DocExceptions.CORRUPT}")
             raise Exception(DocExceptions.CORRUPT)
 
         if stk == 1:  # Paragraph style
@@ -544,7 +544,7 @@ def process_ole(ole):
         elif stk == 4:
             pass
         else:
-            logger.warn("Exeption: ", DocExceptions.CORRUPT, stk)
+            logger.warn(f"Exception: {DocExceptions.CORRUPT} stkstk=={stk}")
             raise Exception(DocExceptions.CORRUPT, stk)
 
     print("Opened OLE:" + ole.get_rootentry_name())
@@ -580,11 +580,11 @@ def analyze(filename):
         contents = file.read()
 
     if contents is None:
-        logger.warn("Exeption: ", DocExceptions.NOFILE)
+        logger.warn(f"Exeption: {DocExceptions.NOFILE}")
         raise Exception(DocExceptions.NOFILE)
 
     if not OLE.isOleFile(data=contents):
-        logger.warn("Exeption: ", DocExceptions.CORRUPT)
+        logger.warn(f"Exeption: {DocExceptions.CORRUPT}")
         raise Exception(DocExceptions.CORRUPT)
 
     with OLE.OleFileIO(contents) as ole:

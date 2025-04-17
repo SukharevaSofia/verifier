@@ -9,7 +9,8 @@ import shutil
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='docxAnalyzer.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='docxAnalyzer.log',
+                    encoding='utf-8', level=logging.DEBUG)
 
 
 # creates a dir with files extracted from .docx file
@@ -18,11 +19,7 @@ def extract_file(filename: str) -> str:
     output_dir = filename[:len(filename)-5] + "_extracted"
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
-    try: # high likelyhood of failure
-        logger.info("creating directory", output_dir, "to unpack to")
-    except:
-        logger.warn("logger failure of working with path :(")
-        pass
+    logger.info(f"creating directory {output_dir} to unpack to")
     os.mkdir(output_dir)
 
     with zipfile.ZipFile(filename, 'r') as zip_ref:
@@ -288,7 +285,7 @@ def check_interval(xmlfile):
                 spacing_auto = True
         if "w:firstLine=\"709\"" in line:
             abzac = True
-    logger.info("result: abzac is ", abzac, " spacing_auto is ", spacing_auto)
+    logger.info(f"result: abzac is {abzac} spacing_auto is {spacing_auto}")
     return abzac and spacing_auto
 
 
@@ -315,7 +312,8 @@ def main(path):
     try:
         links = check_links(document_file)
     except KeyError as e:
-        logger.warn("failed to do a regular link check, doing backup_link check")
+        logger.warn(
+            "failed to do a regular link check, doing backup_link check")
         links = backup_link(document_file)
 
     footer = any([has_centered_footer(x) for x in footer_files])
@@ -339,5 +337,5 @@ def main(path):
     result["Таблицы"] = check_table(document_file)
     result["Формат листа"] = check_A4(document_file)
     result["Шрифт"] = check_fonts(document_file)
-    logger.info("Check finished. Results:", result, links)
+    logger.info(f"Check finished. Results: {result} {links}")
     return result
