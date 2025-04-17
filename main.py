@@ -40,5 +40,6 @@ class DesignApp(App):
     def update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
+
 if __name__ == '__main__':
     DesignApp().run()

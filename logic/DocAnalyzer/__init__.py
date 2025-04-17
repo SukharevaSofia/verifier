@@ -4,6 +4,11 @@
 import struct
 from . import xolefile as OLE
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='docAnalyzer.log',
+                    encoding='utf-8', level=logging.DEBUG)
 
 
 class StructInt(Enum):
@@ -27,12 +32,14 @@ class DocFileType(Enum):
 
 
 def bits(in_bytes):
+    logger.info("entering bits")
     for b in in_bytes:
         for offset in range(8):
             yield (b >> offset) & 1
 
 
 def parse_sttb(data):
+    logger.info("entering parse_sttb")
     fExtend = data[0:2]
     fExtend = fExtend == bytes.fromhex('ffff')
 
@@ -66,11 +73,12 @@ def parse_sttb(data):
         ExtraData_end = ExtraData_start + cbExtra
         result["extradata"].append(data[ExtraData_start: ExtraData_end])
         last_position = ExtraData_end
-
+    logger.info("result:", result)
     return result
 
 
 def file_type_lookup(cbRgFcLcb):
+    logger.info("entering file_type_lookup")
     # comments specify nFib
     match cbRgFcLcb:
         case 0x005D:  # 0x00C1
@@ -84,13 +92,16 @@ def file_type_lookup(cbRgFcLcb):
         case 0x00B7:  # 0x0112
             return DocFileType.DOC2007
         case _:
+            logger.warn(DocExceptions.CORRUPT, cbRgFcLcb)
             raise Exception(DocExceptions.CORRUPT, cbRgFcLcb)
 
 
 def parse_FIB(stream):
+    logger.info("entering parse_FIB")
     fib_base = stream[0:32]
     wIdent = struct.unpack(StructInt.U16.value, fib_base[0:2])[0]
     if (wIdent != 0xA5EC):
+        logger.warn(DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     flags = fib_base[10:12]
@@ -99,6 +110,8 @@ def parse_FIB(stream):
 
     fComplex = list(bits(flags))[2]
     if (fComplex):
+        logger.warn(DocExceptions.NOSUPPORT +
+                        "Нет поддержки зашифрованных файлов")
         raise Exception(DocExceptions.NOSUPPORT +
                         "Нет поддержки инкрементальных файлов")
 
@@ -106,6 +119,8 @@ def parse_FIB(stream):
 
     fEncrypted = list(bits(flags))[8]
     if (fEncrypted):
+        logger.warn(DocExceptions.NOSUPPORT +
+                    "Нет поддержки зашифрованных файлов")
         raise Exception(DocExceptions.NOSUPPORT +
                         "Нет поддержки зашифрованных файлов")
 
@@ -116,6 +131,7 @@ def parse_FIB(stream):
 
 
 def spra_size(spra, sprm, nextbyte, next2byte):
+    logger.info("entering spra_size")
     match spra:
         case 0:
             return 1
@@ -135,12 +151,14 @@ def spra_size(spra, sprm, nextbyte, next2byte):
             if sprm == 0xC615:
                 cb = struct.unpack(StructInt.U16.value, next2byte)[0]
                 if cb == 255:
+                    logger.warn("Exception: ", DocExceptions.NOSUPPORT)
                     raise Exception(DocExceptions.NOSUPPORT)
                 return cb
             return struct.unpack(StructInt.U8.value, nextbyte)[0]
         case 7:
             return 3
         case _:
+            logger.warn("Exeption: ", DocExceptions.CORRUPT)
             raise Exception(DocExceptions.CORRUPT)
 
 
@@ -167,6 +185,7 @@ class ResultField(Enum):
 
 
 def process_ole(ole):
+    logger.info("entering process_ole")
     result = {
         ResultField.contents.value: None,
         ResultField.nav.value: None,
@@ -189,23 +208,27 @@ def process_ole(ole):
         ResultField.font.value: None,
     }
     if not ole.exists("WordDocument"):
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     docdata = None
     with ole.openstream("WordDocument") as doc:
         docdata = doc.read()
     if docdata is None:
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     fib = parse_FIB(docdata)
     result[ResultField.img.value] = fib["fHasPic"]
     if not ole.exists(fib["table"]):
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     tabledata = None
     with ole.openstream(fib["table"]) as tab:
         tabledata = tab.read()
     if tabledata is None:
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     csw_start = 32
@@ -213,6 +236,7 @@ def process_ole(ole):
     csw = struct.unpack(StructInt.U16.value,
                         docdata[csw_start: csw_end])[0]
     if csw != 0x000E:
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT, csw)
 
     fibRgW_start = csw_end
@@ -224,6 +248,7 @@ def process_ole(ole):
     cslw = struct.unpack(StructInt.U16.value,
                          docdata[cslw_start:cslw_end])[0]
     if cslw != 0x0016:
+        logger.warn("Exeption: ", DocExceptions.CORRUPT, cslw)
         raise Exception(DocExceptions.CORRUPT, cslw)
 
     fibRgLw_start = cslw_end
@@ -262,12 +287,14 @@ def process_ole(ole):
     if lcbPlcfSed != 0:
         PclfSed = tabledata[fcPlcfSed:fcPlcfSed+lcbPlcfSed]
         if (lcbPlcfSed-4) % 16 != 0:
+            logger.warn("Exeption: ", DocExceptions.CORRUPT, lcbPlcfSed)
             raise Exception(DocExceptions.CORRUPT, lcbPlcfSed)
         section_count = int((lcbPlcfSed-4) / 16)
         Seds = PclfSed[section_count * 4 + 4:]
         for sect in range(section_count):
             Sed = Seds[sect * 12:sect*12+12]
             if len(Sed) != 12:
+                logger.warn("Exeption: ", DocExceptions.CORRUPT, len(Sed))
                 raise Exception(DocExceptions.CORRUPT, len(Sed))
             fcSepx = struct.unpack(StructInt.U32.value, Sed[2:6])[0]
             Sepx_cb = struct.unpack(
@@ -336,6 +363,7 @@ def process_ole(ole):
     stshif_cbSTDBaseInFile = struct.unpack(
         StructInt.U16.value, stshif[2:4])[0]
     if stshif_cbSTDBaseInFile != 10 and stshif_cbSTDBaseInFile != 18:
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     ftcAsci = struct.unpack(StructInt.U16.value, stshif[12:14])[0]
@@ -389,6 +417,7 @@ def process_ole(ole):
             'utf-16le')
         xstzName_chTerm = std[xstzName_rgtchar_end:xstzName_rgtchar_end+2]
         if not xstzName_chTerm == bytes.fromhex('0000'):
+            logger.warn("Exeption: ", DocExceptions.CORRUPT)
             raise Exception(DocExceptions.CORRUPT)
 
         if stk == 1:  # Paragraph style
@@ -438,6 +467,7 @@ def process_ole(ole):
 
                     UpxPapx_i = UpxPapx_i+2+operand_sz
             except Exception:
+                logger.warn("some exception")
                 pass
         elif stk == 2:  # Char style
             try:
@@ -473,6 +503,7 @@ def process_ole(ole):
 
                     UpxChpx_i = UpxChpx_i+2+operand_sz
             except Exception:
+                logger.warn("some except")
                 pass
         elif stk == 3:  # Table style
             try:
@@ -508,10 +539,12 @@ def process_ole(ole):
 
                     UpxTapx_i = UpxTapx_i+2+operand_sz
             except Exception:
+                logger.warn("some exception")
                 pass
         elif stk == 4:
             pass
         else:
+            logger.warn("Exeption: ", DocExceptions.CORRUPT, stk)
             raise Exception(DocExceptions.CORRUPT, stk)
 
     print("Opened OLE:" + ole.get_rootentry_name())
@@ -535,18 +568,23 @@ def process_ole(ole):
         result[ResultField.addition.value]
 
     result[ResultField.headers.value] = result[ResultField.contents.value]
+    logger.info("Result:")
+    logger.info(result)
     return result
 
 
 def analyze(filename):
+    logger.info("entering analyze")
     contents = None
     with open(filename, mode='rb') as file:
         contents = file.read()
 
     if contents is None:
+        logger.warn("Exeption: ", DocExceptions.NOFILE)
         raise Exception(DocExceptions.NOFILE)
 
     if not OLE.isOleFile(data=contents):
+        logger.warn("Exeption: ", DocExceptions.CORRUPT)
         raise Exception(DocExceptions.CORRUPT)
 
     with OLE.OleFileIO(contents) as ole:

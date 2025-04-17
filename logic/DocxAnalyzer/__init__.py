@@ -6,36 +6,19 @@ import os
 import glob
 import xmltodict
 import shutil
-# with zipfile.ZipFile("sukhareva.docx", 'r') as zip_ref:
-#    zip_ref.extractall("extracted")
+import logging
 
-
-class style_enum(Enum):
-    PAR = "paragraph"
-    CHAR = "character"
-    NUM = "numbering"
-    TAB = "table"
-    DXA = "dxa"
-
-
-class style(NamedTuple):
-    id: str
-    based_on: str
-    is_custom: bool
-    style_type: style_enum
-    name: str
-    priority: int
-    fonts: list
-    color: str
-    spacing: str
-    line_rule: str
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='docxAnalyzer.log', encoding='utf-8', level=logging.DEBUG)
 
 
 # creates a dir with files extracted from .docx file
 def extract_file(filename: str) -> str:
+    logger.info("entered extract_file")
     output_dir = filename[:len(filename)-5] + "_extracted"
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
+    logger.info("creating directory " + output_dir + " to unpack to")
     os.mkdir(output_dir)
 
     with zipfile.ZipFile(filename, 'r') as zip_ref:
@@ -44,6 +27,7 @@ def extract_file(filename: str) -> str:
 
 
 def dict_extract_kvs(d):
+    logger.info("entered dict_extract_kvs")
     stack = [("initial_dict", d)]
     kvs = []
 
@@ -65,6 +49,7 @@ def dict_extract_kvs(d):
 
 
 def check_fonts(xmlfile) -> bool:
+    logger.info("entered check_fonts")
     doc = xmltodict.parse(open(xmlfile, "r", errors="replace").read())
     kvs = dict_extract_kvs(doc)
     for kv in kvs:
@@ -75,6 +60,7 @@ def check_fonts(xmlfile) -> bool:
 
 
 def check_A4(xmlfile) -> bool:
+    logger.info("entered check_A4")
     f = open(xmlfile, "r", errors="replace")
     a = f.read().split("<")
     for line in a:
@@ -86,10 +72,12 @@ def check_A4(xmlfile) -> bool:
 
 
 def has_centered_footer(xmlfile) -> bool:
+    logger.info("entered has_centered_footer")
     return 'w:jc w:val="center"' in open(xmlfile, "r", errors="replace").read()
 
 
 def has_key_words(xmlfile) -> dict:
+    logger.info("entered has_key_words")
     contents = False
     intro = False
     outro = False
@@ -130,10 +118,13 @@ def has_key_words(xmlfile) -> dict:
     res["СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"] = sources
     res["все"] = (
         contents and termins and intro and outro and shortens and appendix and sources)
+    logger.info("Results:")
+    logger.info(res)
     return res
 
 
 def check_links(xmlfile):
+    logger.info("entered check_links")
     anchors = []
     words = []
     result = dict()
@@ -190,11 +181,13 @@ def check_links(xmlfile):
             print("ALARM AT SHIT", n, n[-1:], n[-1:].isdigit())
             result["has_numbering"] = False
             break
-
+    logger.info("Result:")
+    logger.info(result)
     return result
 
 
 def backup_link(xmlfile):
+    logger.info("entered backup_link")
     anchors = []
     words = []
     result = dict()
@@ -251,11 +244,14 @@ def backup_link(xmlfile):
             print("ALARM AT SHIT", n, n[-1:], n[-1:].isdigit())
             result["has_numbering"] = False
             break
+    logger.info("Result:")
+    logger.info(result)
 
     return result
 
 
 def check_table(xmlfile):
+    logger.info("entered check_table")
     f = open(xmlfile, "r", errors="replace")
     a = f.read().split("<")
     for line in a:
@@ -265,6 +261,7 @@ def check_table(xmlfile):
 
 
 def check_size(xmlfile):
+    logger.info("entered check_size")
     f = open(xmlfile, "r", errors="replace")
     a = f.read().split("<")
     for line in a:
@@ -276,6 +273,7 @@ def check_size(xmlfile):
 
 
 def check_interval(xmlfile):
+    logger.info("entered check_interval")
     f = open(xmlfile, "r", errors="replace")
     a = f.read().split("<")
     abzac = False
@@ -286,11 +284,12 @@ def check_interval(xmlfile):
                 spacing_auto = True
         if "w:firstLine=\"709\"" in line:
             abzac = True
-
+    logger.info("result: abzac is " + abzac + " spacing_auto is " + spacing_auto)
     return abzac and spacing_auto
 
 
 def check_drawing(xmlfile):
+    logger.info("entered check_interval")
     f = open(xmlfile, "r", errors="replace")
     a = f.read().split("<")
     for line in a:
@@ -300,6 +299,7 @@ def check_drawing(xmlfile):
 
 
 def main(path):
+    logger.info("entered main func of docxAnalyzer")
     result = dict()
 
     docx_dir = extract_file(path)
@@ -311,6 +311,7 @@ def main(path):
     try:
         links = check_links(document_file)
     except KeyError as e:
+        logger.warn("failed to do a regular link check, doing backup_link check")
         links = backup_link(document_file)
 
     footer = any([has_centered_footer(x) for x in footer_files])
@@ -334,5 +335,5 @@ def main(path):
     result["Таблицы"] = check_table(document_file)
     result["Формат листа"] = check_A4(document_file)
     result["Шрифт"] = check_fonts(document_file)
-    print(result, links)
+    logger.info("Check finished. Results:", result, links)
     return result
