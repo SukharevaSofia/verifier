@@ -12,9 +12,9 @@ class Checker:
     def run_analysis(self, selected):
         if selected:
             self.last_file = selected
-            if str(selected).endswith(".doc"):
+            if selected.endswith(".doc"):
                 self.result = DocAnalyzer.analyze(selected)
-            elif str(selected).endswith(".docx"):
+            elif selected.endswith(".docx"):
                 self.result = DocxAnalyzer.main(selected)
             else:
                 self.result = None
